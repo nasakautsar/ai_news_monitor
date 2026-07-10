@@ -4,7 +4,7 @@ import pandas as pd
 
 URL = "https://news.ycombinator.com/"
 TIMEOUT = 10
-CSV_PATH = "hn_articles.csv"
+CSV_PATH = "output_news.csv"
 
 HEADERS = {
     "User-Agent": (
@@ -16,24 +16,24 @@ HEADERS = {
 
 
 def fetch_page(url):
-    """Ambil HTML dari url, return response object (atau None kalau gagal)."""
+    """Get HTML from url, return response object (or None if failed)."""
     try:
         response = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-        response.raise_for_status()  # kalau status 404/500/dll, langsung lempar HTTPError
+        response.raise_for_status()  # if status 404/500/etc., immediately raise an HTTPError
         return response
     except requests.exceptions.RequestException as e:
-        print(f"Gagal mengambil {url}: {e}")
+        print(f"Failed to retrieve {url}: {e}")
         return None
 
 
 def parse_articles(html):
-    """Parse HTML jadi list dict {title, link, score, author, age}."""
+    """Parse HTML to list dict {title, link, score, author, age}."""
     soup = BeautifulSoup(html, "html.parser")
     articles = soup.find_all("tr", class_="athing")
 
     data = []
     for article in articles:
-        # Struktur HN: <span class="titleline"><a href="...">Judul</a></span>
+        # structure HN: <span class="titleline"><a href="...">Title</a></span>
         title_tag = article.find("span", class_="titleline")
         if not title_tag:
             continue
@@ -45,8 +45,8 @@ def parse_articles(html):
         title = link_tag.get_text(strip=True)
         link = link_tag.get("href")
 
-        # Score, author, dan age ada di baris <tr> BERIKUTNYA (class="subtext"),
-        # bukan di dalam baris "athing" itu sendiri. Jadi perlu cari sibling-nya.
+        # Score, author, and age is in the row <tr> NEXT (class="subtext"),
+        # not within the "athing" line itself. So you need to look for the siblings.
         subtext_row = article.find_next_sibling("tr")
         subtext = subtext_row.find("td", class_="subtext") if subtext_row else None
 
@@ -65,7 +65,7 @@ def parse_articles(html):
 
             age_tag = subtext.find("span", class_="age")
             if age_tag:
-                # Tag <a> di dalam span.age biasanya berisi teks "X hours ago"
+                # The <a> tag inside span. age usually contains text "X hours ago"
                 age_link = age_tag.find("a")
                 age = age_link.get_text(strip=True) if age_link else age_tag.get_text(strip=True)
 
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     response = fetch_page(URL)
 
     if response is None:
-        print("Gagal mengambil halaman.")
+        print("Failed to retrieve the page.")
     else:
         articles = parse_articles(response.text)
 
@@ -98,4 +98,4 @@ if __name__ == "__main__":
 
         df = pd.DataFrame(articles)
         df.to_csv(CSV_PATH, index=False)
-        print(f"Selesai! {len(df)} artikel disimpan ke {CSV_PATH}")
+        print(f"Done! {len(df)} article saved to {CSV_PATH}")
